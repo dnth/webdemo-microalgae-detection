@@ -1,12 +1,21 @@
 from icevision.all import *
+import icedata
 import PIL, requests
 import torch
 from torchvision import transforms
 import gradio as gr
 
+# Download the dataset
+url = "https://cvbp-secondary.z19.web.core.windows.net/datasets/object_detection/odFridgeObjects.zip"
+dest_dir = "fridge"
+data_dir = icedata.load_data(url, dest_dir)
 
 # Create the parser
+
+
 parser = parsers.VOCBBoxParser(annotations_dir="Images/Annotated/augmented", images_dir="Images/Annotated/augmented")
+
+
 # Parse annotations to create records
 train_records, valid_records = parser.parse()
 
@@ -35,15 +44,17 @@ learn = model_type.fastai.learner(dls=[train_dl, valid_dl], model=model, metrics
 learn = learn.load('model')
 
 import os
-for root, dirs, files in os.walk(r'Images/Not_Annotated/valid/'):
+for root, dirs, files in os.walk(r'sample_images/'):
     for filename in files:
         print(filename)
 
-examples = ["Images/Not_Annotated/valid/"+file for file in files] 
-article="<p style='text-align: center'><a href='https://dicksonneoh.com/' target='_blank'>Blog post</a></p>"
+examples = ["sample_images/"+file for file in files] 
+article="<p style='text-align: center'><a href='https://dicksonneoh.com/fridge-detector/' target='_blank'>Blog post</a></p>"
 enable_queue=True
 
 
+#examples = [['sample_images/3.jpg']]
+examples = [["sample_images/"+file] for file in files] 
 
 def show_preds(input_image, display_label, display_bbox, detection_threshold):
 
@@ -66,7 +77,7 @@ detection_threshold_slider = gr.inputs.Slider(minimum=0, maximum=1, step=0.1, de
 outputs = gr.outputs.Image(type="pil")
 
 # Option 1: Get an image from local drive
-gr_interface = gr.Interface(fn=show_preds, inputs=["image", display_chkbox_label, display_chkbox_box,  detection_threshold_slider], outputs=outputs, title='IceApp - Fridge Object', article=article,examples='./Images/Not_Annotated/valid/')
+gr_interface = gr.Interface(fn=show_preds, inputs=["image", display_chkbox_label, display_chkbox_box,  detection_threshold_slider], outputs=outputs, title='IceApp - Fridge Object', article=article, examples=examples)
 
 # #  Option 2: Grab an image from a webcam
 # gr_interface = gr.Interface(fn=show_preds, inputs=["webcam", display_chkbox_label, display_chkbox_box,  detection_threshold_slider], outputs=outputs, title='IceApp - COCO', live=False)
