@@ -1,55 +1,28 @@
 from icevision.all import *
-import icedata
-import PIL, requests
-import torch
-from torchvision import transforms
+from icevision.models.checkpoint import *
+import PIL
 import gradio as gr
+import os
 
-# Download the dataset
-url = "https://cvbp-secondary.z19.web.core.windows.net/datasets/object_detection/odFridgeObjects.zip"
-dest_dir = "fridge"
-data_dir = icedata.load_data(url, dest_dir)
+# Load model
+checkpoint_path = 'models/model_checkpoint.pth'
+checkpoint_and_model = model_from_checkpoint(checkpoint_path)
 
-# Create the parser
-
-
-parser = parsers.VOCBBoxParser(annotations_dir="Images/Annotated/augmented", images_dir="Images/Annotated/augmented")
-
-
-# Parse annotations to create records
-train_records, valid_records = parser.parse()
-
-class_map = parser.class_map
-
-extra_args = {}
-model_type = models.torchvision.retinanet
-backbone = model_type.backbones.resnet50_fpn
-# Instantiate the model
-model = model_type.model(backbone=backbone(pretrained=True), num_classes=len(parser.class_map), **extra_args) 
+model = checkpoint_and_model["model"]
+model_type = checkpoint_and_model["model_type"]
+class_map = checkpoint_and_model["class_map"]
 
 # Transforms
-# size is set to 384 because EfficientDet requires its inputs to be divisible by 128
-image_size = 640
-train_tfms = tfms.A.Adapter([*tfms.A.aug_tfms(size=image_size, presize=768), tfms.A.Normalize()])
-valid_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(image_size), tfms.A.Normalize()])
-# Datasets
-train_ds = Dataset(train_records, train_tfms)
-valid_ds = Dataset(valid_records, valid_tfms)
-# Data Loaders
-train_dl = model_type.train_dl(train_ds, batch_size=8, num_workers=4, shuffle=True)
-valid_dl = model_type.valid_dl(valid_ds, batch_size=8, num_workers=4, shuffle=False)
-metrics = [COCOMetric(metric_type=COCOMetricType.bbox)]
-learn = model_type.fastai.learner(dls=[train_dl, valid_dl], model=model, metrics=metrics)
+img_size = checkpoint_and_model["img_size"]
+valid_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(img_size), tfms.A.Normalize()])
 
-learn = learn.load('model')
 
-import os
 for root, dirs, files in os.walk(r'sample_images/'):
     for filename in files:
         print(filename)
 
 examples = ["sample_images/"+file for file in files] 
-article="<p style='text-align: center'><a href='https://dicksonneoh.com/fridge-detector/' target='_blank'>Blog post</a></p>"
+article="<p style='text-align: center'><a href='https://dicksonneoh.com/' target='_blank'>Blog post</a></p>"
 enable_queue=True
 
 
@@ -77,7 +50,7 @@ detection_threshold_slider = gr.inputs.Slider(minimum=0, maximum=1, step=0.1, de
 outputs = gr.outputs.Image(type="pil")
 
 # Option 1: Get an image from local drive
-gr_interface = gr.Interface(fn=show_preds, inputs=["image", display_chkbox_label, display_chkbox_box,  detection_threshold_slider], outputs=outputs, title='IceApp - Fridge Object', article=article, examples=examples)
+gr_interface = gr.Interface(fn=show_preds, inputs=["image", display_chkbox_label, display_chkbox_box,  detection_threshold_slider], outputs=outputs, title='Microalgae Detection', article=article, examples=examples)
 
 # #  Option 2: Grab an image from a webcam
 # gr_interface = gr.Interface(fn=show_preds, inputs=["webcam", display_chkbox_label, display_chkbox_box,  detection_threshold_slider], outputs=outputs, title='IceApp - COCO', live=False)
